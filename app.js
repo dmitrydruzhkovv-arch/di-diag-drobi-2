@@ -562,5 +562,31 @@ function showProfile(){
   });
 }
 
-/* ====== СТАРТ — сразу первый вопрос, без обложки ====== */
-render();
+/* ====== СТАРТ ====== */
+const _viewCode = new URLSearchParams(location.search).get('r');
+if (_viewCode) { _loadViewMode(_viewCode); } else { render(); }
+
+// ?r=КОД — режим просмотра разбора по ссылке из сообщения Ди
+async function _loadViewMode(code) {
+  document.getElementById('hw-header').hidden = true;
+  screen().innerHTML = '<p style="text-align:center;padding:60px 0;color:var(--lk-muted)">Загружаем разбор…</p>';
+  try {
+    const resp = await fetch(`${HW_ENDPOINT}?r=${encodeURIComponent(code)}`);
+    const d = await resp.json();
+    if (!d.ok || !Array.isArray(d.detail) || !d.detail.length) throw new Error('not found');
+    DATA.questions.forEach((q, i) => {
+      const r = d.detail[i]; if (!r) return;
+      q._shown = q.opts; // в режиме просмотра используем оригинальный порядок
+      const pick = q.opts.findIndex(o => o.t === r.your);
+      answers[q.id] = { ok: r.ok, pick: pick >= 0 ? pick : null };
+    });
+    idx = DATA.questions.length;
+    reported = true; // не шлём отчёт повторно
+    screen().hidden = true;
+    showProfile();
+    const again = document.getElementById('again');
+    if (again) again.remove();
+  } catch(e) {
+    screen().innerHTML = '<p style="text-align:center;padding:60px 0;color:var(--lk-muted)">Результат не найден или устарел.</p>';
+  }
+}
